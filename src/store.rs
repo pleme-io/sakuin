@@ -100,6 +100,31 @@ impl IndexStore {
         Ok(())
     }
 
+    /// Execute a write operation WITHOUT auto-commit.
+    ///
+    /// Use this when you need to batch many writes and commit separately.
+    /// Call [`commit`] when ready to flush.
+    pub fn write_no_commit<F>(&self, f: F) -> Result<(), SakuinError>
+    where
+        F: FnOnce(&mut IndexWriter<'_>) -> Result<(), SakuinError>,
+    {
+        let mut inner = self.writer.lock().map_err(|_| SakuinError::WriterBusy)?;
+        let mut w = IndexWriter {
+            writer: &mut inner,
+            fields: &self.fields,
+        };
+        f(&mut w)?;
+        Ok(())
+    }
+
+    /// Commit pending writes and reload the reader.
+    pub fn commit(&self) -> Result<(), SakuinError> {
+        let mut inner = self.writer.lock().map_err(|_| SakuinError::WriterBusy)?;
+        inner.commit()?;
+        self.reader.reload()?;
+        Ok(())
+    }
+
     /// Retrieve all documents up to `limit`, returned as field-value maps.
     #[must_use]
     pub fn search_all(&self, limit: usize) -> Vec<HashMap<String, DocValue>> {
