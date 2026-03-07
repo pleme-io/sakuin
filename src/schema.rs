@@ -33,7 +33,7 @@ impl SchemaSpec {
         self
     }
 
-    /// Build the tantivy schema and return (schema, field_map).
+    /// Build the tantivy schema and return (schema, `field_map`).
     pub(crate) fn build(&self) -> (Schema, Vec<(String, Field)>) {
         let mut builder = Schema::builder();
         let mut field_map = Vec::new();

@@ -11,6 +11,9 @@ use crate::schema::SchemaSpec;
 use crate::writer::IndexWriter;
 use crate::SakuinError;
 
+/// A scored search result: relevance score paired with the document's field values.
+pub type SearchResult = (f32, HashMap<String, DocValue>);
+
 /// A tantivy search index with managed lifecycle.
 ///
 /// Handles index creation, corruption recovery, writer locking,
@@ -27,14 +30,14 @@ impl IndexStore {
     ///
     /// If the existing index has an incompatible schema, it is deleted
     /// and recreated automatically.
-    pub fn open(index_dir: impl AsRef<Path>, spec: SchemaSpec) -> Result<Self, SakuinError> {
+    pub fn open(index_dir: impl AsRef<Path>, spec: &SchemaSpec) -> Result<Self, SakuinError> {
         Self::open_with_heap(index_dir, spec, 15_000_000)
     }
 
     /// Open or create an index with a custom writer heap size.
     pub fn open_with_heap(
         index_dir: impl AsRef<Path>,
-        spec: SchemaSpec,
+        spec: &SchemaSpec,
         heap_bytes: usize,
     ) -> Result<Self, SakuinError> {
         let index_dir = index_dir.as_ref();
@@ -43,27 +46,24 @@ impl IndexStore {
         let (schema, field_pairs) = spec.build();
         let fields: HashMap<String, Field> = field_pairs.into_iter().collect();
 
-        let index = match Index::open_in_dir(index_dir) {
-            Ok(index) => {
-                // Validate schema compatibility
-                if index.schema() == schema {
-                    index
-                } else {
-                    tracing::warn!("schema mismatch, recreating index");
-                    drop(index);
-                    std::fs::remove_dir_all(index_dir)?;
-                    std::fs::create_dir_all(index_dir)?;
-                    Index::create_in_dir(index_dir, schema.clone())?
-                }
-            }
-            Err(_) => {
-                if index_dir.join("meta.json").exists() {
-                    tracing::warn!("corrupted index, recreating");
-                    std::fs::remove_dir_all(index_dir)?;
-                    std::fs::create_dir_all(index_dir)?;
-                }
+        let index = if let Ok(existing) = Index::open_in_dir(index_dir) {
+            // Validate schema compatibility
+            if existing.schema() == schema {
+                existing
+            } else {
+                tracing::warn!("schema mismatch, recreating index");
+                drop(existing);
+                std::fs::remove_dir_all(index_dir)?;
+                std::fs::create_dir_all(index_dir)?;
                 Index::create_in_dir(index_dir, schema.clone())?
             }
+        } else if index_dir.join("meta.json").exists() {
+            tracing::warn!("corrupted index, recreating");
+            std::fs::remove_dir_all(index_dir)?;
+            std::fs::create_dir_all(index_dir)?;
+            Index::create_in_dir(index_dir, schema.clone())?
+        } else {
+            Index::create_in_dir(index_dir, schema.clone())?
         };
 
         let reader = index
@@ -150,7 +150,7 @@ impl IndexStore {
         query: &str,
         search_fields: &[&str],
         limit: usize,
-    ) -> Result<Vec<(f32, HashMap<String, DocValue>)>, SakuinError> {
+    ) -> Result<Vec<SearchResult>, SakuinError> {
         let fields: Vec<Field> = search_fields
             .iter()
             .filter_map(|name| self.fields.get(*name).copied())
@@ -216,7 +216,7 @@ impl DocValue {
     pub fn as_text(&self) -> Option<&str> {
         match self {
             Self::Text(s) => Some(s),
-            _ => None,
+            Self::U64(_) => None,
         }
     }
 
@@ -225,7 +225,7 @@ impl DocValue {
     pub fn as_u64(&self) -> Option<u64> {
         match self {
             Self::U64(n) => Some(*n),
-            _ => None,
+            Self::Text(_) => None,
         }
     }
 }
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn create_and_write() {
         let dir = TempDir::new().unwrap();
-        let store = IndexStore::open(&dir.path().join("idx"), test_spec()).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &test_spec()).unwrap();
 
         store
             .write(|w| {
@@ -267,7 +267,7 @@ mod tests {
         let idx_dir = dir.path().join("idx");
 
         {
-            let store = IndexStore::open(&idx_dir, test_spec()).unwrap();
+            let store = IndexStore::open(&idx_dir, &test_spec()).unwrap();
             store
                 .write(|w| {
                     w.add_doc(&[("name", "Firefox"), ("path", "/app/Firefox")])?;
@@ -276,7 +276,7 @@ mod tests {
                 .unwrap();
         }
 
-        let store = IndexStore::open(&idx_dir, test_spec()).unwrap();
+        let store = IndexStore::open(&idx_dir, &test_spec()).unwrap();
         let all = store.search_all(100);
         assert_eq!(all.len(), 1);
         assert_eq!(
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn delete_all_and_rewrite() {
         let dir = TempDir::new().unwrap();
-        let store = IndexStore::open(&dir.path().join("idx"), test_spec()).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &test_spec()).unwrap();
 
         store
             .write(|w| {
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn search_by_query() {
         let dir = TempDir::new().unwrap();
-        let store = IndexStore::open(&dir.path().join("idx"), test_spec()).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &test_spec()).unwrap();
 
         store
             .write(|w| {
@@ -342,7 +342,7 @@ mod tests {
         // Create with one schema
         {
             let spec = SchemaSpec::new().field("name", TEXT | STORED);
-            let store = IndexStore::open(&idx_dir, spec).unwrap();
+            let store = IndexStore::open(&idx_dir, &spec).unwrap();
             store
                 .write(|w| {
                     w.add_doc(&[("name", "Test")])?;
@@ -355,7 +355,7 @@ mod tests {
         let spec = SchemaSpec::new()
             .field("name", TEXT | STORED)
             .field("extra", STRING | STORED);
-        let store = IndexStore::open(&idx_dir, spec).unwrap();
+        let store = IndexStore::open(&idx_dir, &spec).unwrap();
         let all = store.search_all(100);
         assert!(all.is_empty(), "index should be empty after schema change");
     }
@@ -363,7 +363,7 @@ mod tests {
     #[test]
     fn delete_term() {
         let dir = TempDir::new().unwrap();
-        let store = IndexStore::open(&dir.path().join("idx"), test_spec()).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &test_spec()).unwrap();
 
         store
             .write(|w| {
@@ -391,7 +391,7 @@ mod tests {
         let spec = SchemaSpec::new()
             .field("name", TEXT | STORED)
             .u64_field("uid", tantivy::schema::STORED | tantivy::schema::INDEXED);
-        let store = IndexStore::open(&dir.path().join("idx"), spec).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &spec).unwrap();
 
         store
             .write(|w| {
@@ -418,7 +418,7 @@ mod tests {
         let spec = SchemaSpec::new()
             .field("name", TEXT | STORED)
             .u64_field("uid", tantivy::schema::STORED | tantivy::schema::INDEXED);
-        let store = IndexStore::open(&dir.path().join("idx"), spec).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &spec).unwrap();
 
         store
             .write(|w| {
@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn field_lookup() {
         let dir = TempDir::new().unwrap();
-        let store = IndexStore::open(&dir.path().join("idx"), test_spec()).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &test_spec()).unwrap();
 
         assert!(store.field("name").is_some());
         assert!(store.field("path").is_some());
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn empty_index_search() {
         let dir = TempDir::new().unwrap();
-        let store = IndexStore::open(&dir.path().join("idx"), test_spec()).unwrap();
+        let store = IndexStore::open(&dir.path().join("idx"), &test_spec()).unwrap();
 
         let all = store.search_all(100);
         assert!(all.is_empty());

@@ -14,7 +14,7 @@
 //!     .field("name", TEXT | STORED)
 //!     .field("path", STRING | STORED);
 //!
-//! let store = IndexStore::open("/tmp/my-index", spec).unwrap();
+//! let store = IndexStore::open("/tmp/my-index", &spec).unwrap();
 //!
 //! store.write(|writer| {
 //!     writer.add_doc(&[("name", "Firefox"), ("path", "/Applications/Firefox.app")])?;
