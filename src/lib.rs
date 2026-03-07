@@ -31,7 +31,7 @@ mod writer;
 
 pub use error::SakuinError;
 pub use schema::SchemaSpec;
-pub use store::IndexStore;
+pub use store::{DocValue, IndexStore, SearchResult};
 pub use writer::IndexWriter;
 
 pub use tantivy;
