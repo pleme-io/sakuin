@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tantivy::schema::Field;
 use tantivy::TantivyDocument;
 
-use crate::SakuinError;
+use crate::TankyuError;
 
 /// A scoped index writer that collects document operations and commits on drop.
 ///
@@ -18,7 +18,7 @@ impl IndexWriter<'_> {
     /// Add a document with text field values.
     ///
     /// Fields not in the schema are silently ignored.
-    pub fn add_doc(&mut self, values: &[(&str, &str)]) -> Result<(), SakuinError> {
+    pub fn add_doc(&mut self, values: &[(&str, &str)]) -> Result<(), TankyuError> {
         let mut doc = TantivyDocument::new();
         for (name, value) in values {
             if let Some(&field) = self.fields.get(*name) {
@@ -34,7 +34,7 @@ impl IndexWriter<'_> {
         &mut self,
         text_values: &[(&str, &str)],
         u64_values: &[(&str, u64)],
-    ) -> Result<(), SakuinError> {
+    ) -> Result<(), TankyuError> {
         let mut doc = TantivyDocument::new();
         for (name, value) in text_values {
             if let Some(&field) = self.fields.get(*name) {
@@ -51,7 +51,7 @@ impl IndexWriter<'_> {
     }
 
     /// Delete all documents in the index.
-    pub fn delete_all(&mut self) -> Result<(), SakuinError> {
+    pub fn delete_all(&mut self) -> Result<(), TankyuError> {
         self.writer.delete_all_documents()?;
         Ok(())
     }

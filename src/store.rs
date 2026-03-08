@@ -9,7 +9,7 @@ use tantivy::{Index, IndexReader, ReloadPolicy, TantivyDocument};
 
 use crate::schema::SchemaSpec;
 use crate::writer::IndexWriter;
-use crate::SakuinError;
+use crate::TankyuError;
 
 /// A scored search result: relevance score paired with the document's field values.
 pub type SearchResult = (f32, HashMap<String, DocValue>);
@@ -30,7 +30,7 @@ impl IndexStore {
     ///
     /// If the existing index has an incompatible schema, it is deleted
     /// and recreated automatically.
-    pub fn open(index_dir: impl AsRef<Path>, spec: &SchemaSpec) -> Result<Self, SakuinError> {
+    pub fn open(index_dir: impl AsRef<Path>, spec: &SchemaSpec) -> Result<Self, TankyuError> {
         Self::open_with_heap(index_dir, spec, 15_000_000)
     }
 
@@ -39,7 +39,7 @@ impl IndexStore {
         index_dir: impl AsRef<Path>,
         spec: &SchemaSpec,
         heap_bytes: usize,
-    ) -> Result<Self, SakuinError> {
+    ) -> Result<Self, TankyuError> {
         let index_dir = index_dir.as_ref();
         std::fs::create_dir_all(index_dir)?;
 
@@ -85,11 +85,11 @@ impl IndexStore {
 
     /// Execute a write operation. The writer is locked for the duration,
     /// committed on success, and the reader is reloaded.
-    pub fn write<F>(&self, f: F) -> Result<(), SakuinError>
+    pub fn write<F>(&self, f: F) -> Result<(), TankyuError>
     where
-        F: FnOnce(&mut IndexWriter<'_>) -> Result<(), SakuinError>,
+        F: FnOnce(&mut IndexWriter<'_>) -> Result<(), TankyuError>,
     {
-        let mut inner = self.writer.lock().map_err(|_| SakuinError::WriterBusy)?;
+        let mut inner = self.writer.lock().map_err(|_| TankyuError::WriterBusy)?;
         let mut w = IndexWriter {
             writer: &mut inner,
             fields: &self.fields,
@@ -104,11 +104,11 @@ impl IndexStore {
     ///
     /// Use this when you need to batch many writes and commit separately.
     /// Call [`commit`] when ready to flush.
-    pub fn write_no_commit<F>(&self, f: F) -> Result<(), SakuinError>
+    pub fn write_no_commit<F>(&self, f: F) -> Result<(), TankyuError>
     where
-        F: FnOnce(&mut IndexWriter<'_>) -> Result<(), SakuinError>,
+        F: FnOnce(&mut IndexWriter<'_>) -> Result<(), TankyuError>,
     {
-        let mut inner = self.writer.lock().map_err(|_| SakuinError::WriterBusy)?;
+        let mut inner = self.writer.lock().map_err(|_| TankyuError::WriterBusy)?;
         let mut w = IndexWriter {
             writer: &mut inner,
             fields: &self.fields,
@@ -118,8 +118,8 @@ impl IndexStore {
     }
 
     /// Commit pending writes and reload the reader.
-    pub fn commit(&self) -> Result<(), SakuinError> {
-        let mut inner = self.writer.lock().map_err(|_| SakuinError::WriterBusy)?;
+    pub fn commit(&self) -> Result<(), TankyuError> {
+        let mut inner = self.writer.lock().map_err(|_| TankyuError::WriterBusy)?;
         inner.commit()?;
         self.reader.reload()?;
         Ok(())
@@ -150,7 +150,7 @@ impl IndexStore {
         query: &str,
         search_fields: &[&str],
         limit: usize,
-    ) -> Result<Vec<SearchResult>, SakuinError> {
+    ) -> Result<Vec<SearchResult>, TankyuError> {
         let fields: Vec<Field> = search_fields
             .iter()
             .filter_map(|name| self.fields.get(*name).copied())

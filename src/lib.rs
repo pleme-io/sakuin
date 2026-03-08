@@ -1,4 +1,4 @@
-//! Sakuin (索引) — tantivy search index abstraction.
+//! Tankyu (探究) — tantivy search index abstraction.
 //!
 //! Provides a generic wrapper around tantivy's full-text search engine,
 //! handling the boilerplate of index creation, corruption recovery,
@@ -7,7 +7,7 @@
 //! # Quick Start
 //!
 //! ```no_run
-//! use sakuin::{IndexStore, SchemaSpec};
+//! use tankyu::{IndexStore, SchemaSpec};
 //! use tantivy::schema::{TEXT, STORED, STRING};
 //!
 //! let spec = SchemaSpec::new()
@@ -29,7 +29,7 @@ mod schema;
 mod store;
 mod writer;
 
-pub use error::SakuinError;
+pub use error::TankyuError;
 pub use schema::SchemaSpec;
 pub use store::{DocValue, IndexStore, SearchResult};
 pub use writer::IndexWriter;

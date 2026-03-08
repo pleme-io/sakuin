@@ -725,15 +725,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
-name = "sakuin"
-version = "0.1.0"
-dependencies = [
- "tantivy",
- "tempfile",
- "tracing",
-]
-
-[[package]]
 name = "semver"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -818,6 +809,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tankyu"
+version = "0.1.0"
+dependencies = [
+ "tantivy",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

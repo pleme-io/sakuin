@@ -1,9 +1,9 @@
 [package]
-name = "sakuin"
+name = "tankyu"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.89.0"
-description = "Sakuin (索引) — tantivy search index abstraction for Rust applications"
+description = "Tankyu (探究) — tantivy search index abstraction for Rust applications"
 homepage = "https://github.com/pleme-io/sakuin"
 repository = "https://github.com/pleme-io/sakuin"
 readme = "README.md"

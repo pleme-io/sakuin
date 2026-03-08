@@ -1,4 +1,4 @@
-# Sakuin (索引) — Tantivy Search Index Abstraction
+# Tankyu (探究) — Tantivy Search Index Abstraction
 
 ## Build & Test
 
@@ -24,7 +24,7 @@ Generic wrapper around tantivy 0.22 handling:
 | `src/schema.rs` | `SchemaSpec` — declarative schema builder |
 | `src/store.rs` | `IndexStore` — managed tantivy index (10 tests) |
 | `src/writer.rs` | `IndexWriter` — scoped write operations |
-| `src/error.rs` | `SakuinError` — tantivy/IO/query errors |
+| `src/error.rs` | `TankyuError` — tantivy/IO/query errors |
 
 ### Key Types
 
